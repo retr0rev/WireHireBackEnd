@@ -1,0 +1,5 @@
+[build]
+builder = "railpack"
+
+[build.railpack]
+goVersion = "1.25"
