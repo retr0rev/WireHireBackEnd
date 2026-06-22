@@ -8,5 +8,8 @@
     "startCommand": "./out",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
+  },
+  "nixpacks": {
+    "goVersion": "1.25"
   }
 }
