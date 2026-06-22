@@ -125,8 +125,8 @@ func main() {
 
 		// Routes that any signed-in admin (super OR moderator) can hit.
 		r.Group(func(r chi.Router) {
-			r.Use(authmw.AdminAuth)
-			r.Get("/me", adminHandler.Me)
+			r.With(authmw.AdminAuth).Get("/me", adminHandler.Me)
+			r.With(authmw.AdminAuth).Patch("/me/password", adminHandler.ChangePassword)
 			r.Get("/jobs", adminHandler.ListJobs)
 			r.With(authmw.RateLimit(writeLimiter)).Put("/jobs/{id}/status", adminHandler.UpdateStatus)
 			r.With(authmw.RateLimit(writeLimiter)).Delete("/jobs/{id}", adminHandler.DeleteJob)

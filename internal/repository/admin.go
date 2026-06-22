@@ -79,3 +79,8 @@ func (r *AdminRepo) ListAll() ([]models.Admin, error) {
 	}
 	return out, rows.Err()
 }
+
+func (r *AdminRepo) UpdatePassword(id int64, hash string) error {
+	_, err := r.db.Exec("UPDATE ADMINS SET password = ? WHERE id = ?", hash, id)
+	return err
+}

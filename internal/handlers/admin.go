@@ -419,6 +419,51 @@ func (h *AdminHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ChangePassword lets the current admin change their own password.
+func (h *AdminHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	id := middleware.GetAdminID(r)
+
+	var req struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if errMsg := middleware.ValidatePassword(req.NewPassword); errMsg != "" {
+		http.Error(w, `{"error":"`+errMsg+`"}`, http.StatusBadRequest)
+		return
+	}
+
+	admin, err := h.adminRepo.FindByID(id)
+	if err != nil || admin == nil {
+		http.Error(w, `{"error":"admin not found"}`, http.StatusNotFound)
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(req.CurrentPassword)); err != nil {
+		http.Error(w, `{"error":"current password is incorrect"}`, http.StatusForbidden)
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, `{"error":"server error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.adminRepo.UpdatePassword(id, string(hash)); err != nil {
+		http.Error(w, `{"error":"failed to update password"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(models.MessageResponse{Message: "password updated"})
+}
+
 // ---- Employer verification (Moderator+) ----
 
 func (h *AdminHandler) ListPendingEmployers(w http.ResponseWriter, r *http.Request) {
