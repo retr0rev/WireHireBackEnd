@@ -36,17 +36,10 @@ func GenerateToken(claims jwt.MapClaims) (string, error) {
 	return token.SignedString(getJWTSecret())
 }
 
-// getCookieDomain returns the domain for the auth cookie.
-// In production (TLS enabled) it returns ".wirehire.com" so the cookie is
-// shared across all subdomains. On localhost it returns "" (same-origin only).
+// getCookieDomain returns COOKIE_DOMAIN if set, otherwise "" (host-only).
+// Host-only + SameSite=None + Secure works for cross-origin (Vercel→Railway).
 func getCookieDomain() string {
-	if os.Getenv("TLS_ENABLED") == "true" {
-		if d := os.Getenv("COOKIE_DOMAIN"); d != "" {
-			return d
-		}
-		return ".wirehire.com"
-	}
-	return ""
+	return os.Getenv("COOKIE_DOMAIN")
 }
 
 func isSecure() bool {
