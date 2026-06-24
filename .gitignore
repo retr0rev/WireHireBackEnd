@@ -23,3 +23,6 @@ out
 # OS
 .DS_Store
 nohup.out
+
+# Local uploads (dev only)
+uploads/
