@@ -19,9 +19,9 @@ func SetCSRFCookie(w http.ResponseWriter, token string) {
 		Path:     "/",
 		Domain:   getCookieDomain(),
 		HttpOnly: false, // JS must be able to read it
-		Secure:   true,  // localhost is a secure context in all modern browsers
-		SameSite: http.SameSiteNoneMode,
-		MaxAge:   86400, // 24h
+		Secure:   isSecure(),
+		SameSite: http.SameSiteNoneMode, // cross-origin (localhost:5174→:8080)
+		MaxAge:   86400,
 	}
 	http.SetCookie(w, c)
 }

@@ -60,10 +60,9 @@ func SetAuthCookie(w http.ResponseWriter, token string) {
 		MaxAge:   72 * 60 * 60, // 72h, matching JWT expiry
 	}
 	if !isSecure() {
-		// SameSite=None requires Secure in browsers, but on localhost
-		// (secure context) this is accepted. Drop SameSite on non-TLS
-		// so the cookie works cross-origin in development.
-		c.SameSite = http.SameSiteDefaultMode
+		// SameSite=None requires Secure in browsers, but localhost is
+		// a secure context (potentially trustworthy origin) in all major
+		// browsers, so SameSite=None without Secure works in development.
 	}
 	http.SetCookie(w, c)
 
