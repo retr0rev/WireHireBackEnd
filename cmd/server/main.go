@@ -125,12 +125,19 @@ func main() {
 
 		// Routes that any signed-in admin (super OR moderator) can hit.
 		r.Group(func(r chi.Router) {
-			r.With(authmw.AdminAuth).Get("/me", adminHandler.Me)
-			r.With(authmw.AdminAuth).Patch("/me/password", adminHandler.ChangePassword)
+			r.Use(authmw.AdminAuth)
+			r.Get("/me", adminHandler.Me)
+			r.Patch("/me/password", adminHandler.ChangePassword)
+			r.Post("/logout", adminHandler.Logout)
+		})
+
+		// Moderator-or-above routes.
+		r.Group(func(r chi.Router) {
+			r.Use(authmw.AdminAuth)
+			r.Use(authmw.ModeratorOrAbove)
 			r.Get("/jobs", adminHandler.ListJobs)
 			r.With(authmw.RateLimit(writeLimiter)).Put("/jobs/{id}/status", adminHandler.UpdateStatus)
 			r.With(authmw.RateLimit(writeLimiter)).Delete("/jobs/{id}", adminHandler.DeleteJob)
-			r.Post("/logout", adminHandler.Logout)
 			r.Get("/employers/pending", adminHandler.ListPendingEmployers)
 			r.With(authmw.RateLimit(writeLimiter)).Put("/employers/{id}/verify", adminHandler.VerifyEmployer)
 		})
