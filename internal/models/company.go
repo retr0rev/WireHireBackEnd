@@ -78,7 +78,6 @@ type UpdateEmployerRequest struct {
 }
 
 type EmployerCreateResponse struct {
-	Client     Client `json:"client"`
-	Temporary  bool   `json:"temporary"`
-	RawPassword string `json:"raw_password,omitempty"`
+	Client    Client `json:"client"`
+	Temporary bool   `json:"temporary"`
 }

@@ -276,9 +276,8 @@ func (h *AdminHandler) CreateEmployer(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(models.EmployerCreateResponse{
-		Client:      *created,
-		Temporary:   false,
-		RawPassword: req.Password,
+		Client:    *created,
+		Temporary: false,
 	})
 }
 
