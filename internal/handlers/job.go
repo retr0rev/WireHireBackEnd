@@ -96,7 +96,7 @@ func (h *JobHandler) Create(w http.ResponseWriter, r *http.Request) {
 	req.Category = strings.TrimSpace(req.Category)
 	req.Location = strings.TrimSpace(req.Location)
 
-	job, err := h.jobRepo.Create(clientID, req.JobTitle, req.Description, req.Category, req.Location)
+	job, err := h.jobRepo.Create(clientID, req.JobTitle, req.Description, req.Category, req.Location, req.BannerImageURL)
 	if err != nil {
 		http.Error(w, `{"error":"failed to create job"}`, http.StatusInternalServerError)
 		return
@@ -159,6 +159,7 @@ func (h *JobHandler) Update(w http.ResponseWriter, r *http.Request) {
 	desc := existing.Description
 	cat := existing.Category
 	loc := existing.Location
+	bannerURL := existing.BannerImageURL
 	if req.JobTitle != "" {
 		if errMsg := middleware.ValidateJobTitle(req.JobTitle); errMsg != "" {
 			http.Error(w, `{"error":"`+errMsg+`"}`, http.StatusBadRequest)
@@ -191,8 +192,11 @@ func (h *JobHandler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 		loc = req.Location
 	}
+	if req.BannerImageURL != "" {
+		bannerURL = req.BannerImageURL
+	}
 
-	job, err := h.jobRepo.Update(jobID, clientID, title, desc, cat, loc)
+	job, err := h.jobRepo.Update(jobID, clientID, title, desc, cat, loc, bannerURL)
 	if err != nil {
 		http.Error(w, `{"error":"failed to update job"}`, http.StatusInternalServerError)
 		return

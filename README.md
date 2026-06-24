@@ -28,7 +28,7 @@ Server starts on `:8080` by default (set `PORT` to override).
 ## Environment Variables
 
 | Variable | Required | Default | Description |
-|---|---|---|---|
+|---|---|---|---|---|
 | `JWT_SECRET` | ✅ | — | Min 32 chars. Generate: `openssl rand -hex 32` |
 | `DB_PATH` | — | `./database/database.db` | SQLite file path |
 | `CORS_ORIGIN` | — | `*` (dev) | Comma-separated origins for production |
@@ -38,6 +38,11 @@ Server starts on `:8080` by default (set `PORT` to override).
 | `APP_URL` | — | `http://localhost:8080` | Base URL for email links |
 | `RESEND_API_KEY` | — | — | Resend email (falls back to SMTP or console) |
 | `SMTP_HOST` | — | — | SMTP host (with `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`) |
+| `R2_ACCOUNT_ID` | — | — | Cloudflare R2 account ID (required for image upload) |
+| `R2_ACCESS_KEY_ID` | — | — | R2 API access key ID |
+| `R2_SECRET_ACCESS_KEY` | — | — | R2 API secret access key |
+| `R2_BUCKET_NAME` | — | — | R2 bucket name (e.g. `wirehire-images`) |
+| `R2_PUBLIC_URL` | — | — | R2 bucket public URL or custom domain (e.g. `https://images.wirehire.com`) |
 
 ## API Endpoints
 

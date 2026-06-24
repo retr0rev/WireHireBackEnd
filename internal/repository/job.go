@@ -17,7 +17,8 @@ func NewJobRepo(db *sql.DB) *JobRepo {
 const jobSelectColumns = `j.id, j.client_id, j.jobtitle, j.description, j.status,
 	j.category, j.location, c.c_email, c.phone_number,
 	COALESCE(c.company_name, ''), COALESCE(c.company_website, ''),
-	COALESCE(c.company_logo_url, ''), COALESCE(c.company_bio, '')`
+	COALESCE(c.company_logo_url, ''), COALESCE(c.company_bio, ''),
+	COALESCE(j.banner_image_url, '')`
 
 const jobJoinClause = ` FROM JOBSAPPS j JOIN CLIENTS c ON j.client_id = c.id `
 
@@ -31,6 +32,7 @@ func scanJobWithContact(s interface {
 		&j.Status, &j.Category, &j.Location,
 		&j.ClientEmail, &phone,
 		&j.CompanyName, &j.CompanyWebsite, &j.CompanyLogoURL, &j.CompanyBio,
+		&j.BannerImageURL,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -45,10 +47,10 @@ func scanJobWithContact(s interface {
 	return j, nil
 }
 
-func (r *JobRepo) Create(clientID int64, title, description, category, location string) (*models.JobApp, error) {
+func (r *JobRepo) Create(clientID int64, title, description, category, location, bannerImageURL string) (*models.JobApp, error) {
 	res, err := r.db.Exec(
-		"INSERT INTO JOBSAPPS (client_id, jobtitle, description, status, category, location) VALUES (?, ?, ?, ?, ?, ?)",
-		clientID, title, description, models.StatusPending, category, location,
+		"INSERT INTO JOBSAPPS (client_id, jobtitle, description, status, category, location, banner_image_url) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		clientID, title, description, models.StatusPending, category, location, bannerImageURL,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("insert job: %w", err)
@@ -152,10 +154,10 @@ func (r *JobRepo) UpdateStatus(id int64, status string) error {
 	return nil
 }
 
-func (r *JobRepo) Update(id, clientID int64, title, description, category, location string) (*models.JobApp, error) {
+func (r *JobRepo) Update(id, clientID int64, title, description, category, location, bannerImageURL string) (*models.JobApp, error) {
 	_, err := r.db.Exec(
-		"UPDATE JOBSAPPS SET jobtitle = ?, description = ?, category = ?, location = ? WHERE id = ? AND client_id = ?",
-		title, description, category, location, id, clientID,
+		"UPDATE JOBSAPPS SET jobtitle = ?, description = ?, category = ?, location = ?, banner_image_url = ? WHERE id = ? AND client_id = ?",
+		title, description, category, location, bannerImageURL, id, clientID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("update job: %w", err)

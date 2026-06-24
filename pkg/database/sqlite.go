@@ -121,6 +121,7 @@ func migrate(db *sql.DB) error {
 		{"CLIENTS", "company_logo_url", "TEXT NOT NULL DEFAULT ''"},
 		{"CLIENTS", "company_bio", "TEXT NOT NULL DEFAULT ''"},
 		{"CLIENTS", "created_by_admin_id", "INTEGER"},
+		{"JOBSAPPS", "banner_image_url", "TEXT NOT NULL DEFAULT ''"},
 	}
 	for _, c := range addCols {
 		stmt := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", c.table, c.col, c.def)

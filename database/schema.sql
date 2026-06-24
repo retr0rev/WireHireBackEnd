@@ -30,5 +30,6 @@ CREATE TABLE JOBSAPPS (
     status TEXT NOT NULL DEFAULT 'pending',
     category TEXT NOT NULL DEFAULT '',
     location TEXT NOT NULL DEFAULT '',
+    banner_image_url TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (client_id) REFERENCES CLIENTS(id)
 );

@@ -16,6 +16,7 @@ import (
 	"jobapps/internal/handlers"
 	authmw "jobapps/internal/middleware"
 	"jobapps/internal/repository"
+	"jobapps/internal/storage"
 	dbpkg "jobapps/pkg/database"
 
 	"github.com/go-chi/chi/v5"
@@ -68,6 +69,15 @@ func main() {
 	verifyHandler := handlers.NewVerifyHandler(clientRepo, emailSender)
 	adminHandler := handlers.NewAdminHandler(adminRepo, jobRepo, clientRepo)
 	jobHandler := handlers.NewJobHandler(jobRepo)
+
+	r2Client, err := storage.NewR2Client()
+	if err != nil {
+		log.Printf("WARNING: R2 not configured — image upload disabled: %v", err)
+	}
+	var uploadHandler *handlers.UploadHandler
+	if r2Client != nil {
+		uploadHandler = handlers.NewUploadHandler(r2Client)
+	}
 
 	corsOrigin := os.Getenv("CORS_ORIGIN")
 	if corsOrigin == "" {
@@ -130,6 +140,11 @@ func main() {
 
 	// Client logout (clears httpOnly cookie).
 	r.With(authmw.ClientAuth).Post("/api/auth/logout", companyHandler.Logout)
+
+	// Authenticated image upload — requires ClientAuth + CSRF.
+	if uploadHandler != nil {
+		r.With(authmw.ClientAuth, authmw.RateLimit(writeLimiter)).Post("/api/auth/upload-url", uploadHandler.GetUploadURL)
+	}
 
 	r.Route("/api/admin", func(r chi.Router) {
 		r.With(authmw.RateLimit(adminAuthLimiter)).Post("/login", adminHandler.Login)
