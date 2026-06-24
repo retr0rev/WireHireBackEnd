@@ -20,8 +20,14 @@ func SetCSRFCookie(w http.ResponseWriter, token string) {
 		Domain:   getCookieDomain(),
 		HttpOnly: false, // JS must be able to read it
 		Secure:   isSecure(),
-		SameSite: http.SameSiteNoneMode, // cross-origin (localhost:5174→:8080)
+		SameSite: http.SameSiteNoneMode, // cross-origin in production
 		MaxAge:   86400,
+	}
+	if !isSecure() {
+		// Dev mode (Vite proxy, same-origin): SameSite=None requires
+		// Secure, which doesn't work over HTTP. Use Lax instead —
+		// same-origin requests don't need None.
+		c.SameSite = http.SameSiteDefaultMode
 	}
 	http.SetCookie(w, c)
 }
