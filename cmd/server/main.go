@@ -82,6 +82,7 @@ func main() {
 	r.Use(chimw.Recoverer)
 	r.Use(authmw.CORS(corsOrigin))
 	r.Use(authmw.SecurityHeaders)
+	r.Use(authmw.CSRFMiddleware)
 
 	authLimiter := authmw.NewIPRateLimiter(rate.Limit(0.2), 5)
 	adminAuthLimiter := authmw.NewIPRateLimiter(rate.Limit(0.1), 3)
@@ -99,6 +100,16 @@ func main() {
 		r.With(authmw.RateLimit(authLimiter)).Get("/verify", verifyHandler.VerifyEmail)
 		r.With(authmw.RateLimit(passwordResetLimiter)).Post("/forgot-password", verifyHandler.ForgotPassword)
 		r.With(authmw.RateLimit(passwordResetLimiter)).Post("/reset-password", verifyHandler.ResetPassword)
+		r.With(authmw.RateLimit(authLimiter)).Get("/csrf", func(w http.ResponseWriter, r *http.Request) {
+			token, err := authmw.GenerateCSRFToken()
+			if err != nil {
+				http.Error(w, `{"error":"failed to generate csrf token"}`, http.StatusInternalServerError)
+				return
+			}
+			authmw.SetCSRFCookie(w, token)
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"csrf_token":"` + token + `"}`))
+		})
 	})
 
 	r.Route("/api/jobs", func(r chi.Router) {

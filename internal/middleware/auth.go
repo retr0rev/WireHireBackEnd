@@ -47,6 +47,7 @@ func isSecure() bool {
 }
 
 // SetAuthCookie writes the JWT as an httpOnly cookie on the response.
+// It also sets a non-HttpOnly CSRF cookie for double-submit CSRF protection.
 func SetAuthCookie(w http.ResponseWriter, token string) {
 	c := &http.Cookie{
 		Name:     CookieTokenKey,
@@ -65,6 +66,11 @@ func SetAuthCookie(w http.ResponseWriter, token string) {
 		c.SameSite = http.SameSiteDefaultMode
 	}
 	http.SetCookie(w, c)
+
+	// Also set a CSRF cookie so mutations require the matching header.
+	if csrfToken, err := GenerateCSRFToken(); err == nil {
+		SetCSRFCookie(w, csrfToken)
+	}
 }
 
 // ClearAuthCookie unsets the auth cookie (used on logout).
