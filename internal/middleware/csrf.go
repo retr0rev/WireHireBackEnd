@@ -49,14 +49,33 @@ func CSRFCookieToken(r *http.Request) string {
 	return ""
 }
 
+// publicAuthPaths lists public auth endpoints that don't require CSRF protection.
+// These are safe because they're either:
+// - Registration (signup) - no existing session to hijack
+// - Login - establishes session, no prior auth state
+// - Password reset - initiated via email token, not session
+var publicAuthPaths = map[string]struct{}{
+	"/api/auth/signup":          {},
+	"/api/auth/login":           {},
+	"/api/auth/forgot-password": {},
+	"/api/auth/reset-password":  {},
+}
+
 // CSRFMiddleware returns a middleware that enforces double-submit CSRF
 // protection on state-changing methods (POST, PUT, PATCH, DELETE).
 // GET, HEAD, and OPTIONS requests are always allowed through.
+// Public auth endpoints are also exempt.
 func CSRFMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Skip non-state-changing methods.
 		switch r.Method {
 		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Skip public auth endpoints that don't require CSRF.
+		if _, ok := publicAuthPaths[r.URL.Path]; ok {
 			next.ServeHTTP(w, r)
 			return
 		}
