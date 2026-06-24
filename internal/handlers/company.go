@@ -192,11 +192,29 @@ func (h *CompanyHandler) ListPublicEmployers(w http.ResponseWriter, r *http.Requ
 		http.Error(w, `{"error":"server error"}`, http.StatusInternalServerError)
 		return
 	}
-	if clients == nil {
-		clients = []models.Client{}
+
+	type publicEmployer struct {
+		ID             int64  `json:"id"`
+		CompanyName    string `json:"company_name"`
+		CompanyWebsite string `json:"company_website"`
+		CompanyLogoURL string `json:"company_logo_url"`
+		CompanyBio     string `json:"company_bio"`
+		JobsApproved   int64  `json:"jobs_approved"`
+	}
+
+	out := make([]publicEmployer, len(clients))
+	for i, c := range clients {
+		out[i] = publicEmployer{
+			ID:             c.ID,
+			CompanyName:    c.CompanyName,
+			CompanyWebsite: c.CompanyWebsite,
+			CompanyLogoURL: c.CompanyLogoURL,
+			CompanyBio:     c.CompanyBio,
+			JobsApproved:   c.JobsApproved,
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(clients)
+	json.NewEncoder(w).Encode(out)
 }
 
 // Me returns the authenticated client's own profile.

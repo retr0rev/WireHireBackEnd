@@ -63,7 +63,7 @@ func (s *SMTPSender) Send(to, subject, body string) error {
 // ResendSender delivers via the Resend transactional email API.
 // Required env vars:
 //   - RESEND_API_KEY (e.g. "re_...")
-//   - RESEND_FROM    (e.g. "JobNest <noreply@yourdomain.com>" or just "noreply@yourdomain.com")
+//   - RESEND_FROM    (e.g. "WireHire <noreply@yourdomain.com>" or just "noreply@yourdomain.com")
 //
 // For testing without configuring a custom domain, Resend's
 // `onboarding@resend.dev` test sender works — set:
@@ -152,7 +152,7 @@ func renderHTML(subject, body string) string {
         <tr><td>
           <h1 style="margin:0 0 24px 0;font-size:18px;font-weight:600;color:#0f172a;">%s</h1>
           %s
-          <p style="margin:24px 0 0 0;font-size:12px;color:#94a3b8;">JobNest</p>
+          <p style="margin:24px 0 0 0;font-size:12px;color:#94a3b8;">WireHire</p>
         </td></tr>
       </table>
     </td></tr>
@@ -191,7 +191,7 @@ func joinStrings(ss []string) string {
 // account verification email.
 func BuildVerifyEmail(verifyURL string) (subject, body string) {
 	return "Verify your email",
-		fmt.Sprintf(`Welcome to JobNest!
+		fmt.Sprintf(`Welcome to WireHire!
 
 Please verify your email by clicking the link below:
 
@@ -203,8 +203,8 @@ This link expires in 24 hours. If you did not create this account, you can safel
 // BuildResetEmail returns (subject, plain-text body) for the
 // password reset email.
 func BuildResetEmail(resetURL string) (subject, body string) {
-	return "Reset your JobNest password",
-		fmt.Sprintf(`You (or someone using your email) requested a password reset for your JobNest account.
+	return "Reset your WireHire password",
+		fmt.Sprintf(`You (or someone using your email) requested a password reset for your WireHire account.
 
 Click the link below to choose a new password:
 

@@ -97,6 +97,16 @@ func migrate(db *sql.DB) error {
 		}
 	}
 
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_jobsapps_status ON JOBSAPPS(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_jobsapps_client_id ON JOBSAPPS(client_id)`,
+	}
+	for _, s := range indexes {
+		if _, err := db.Exec(s); err != nil {
+			return err
+		}
+	}
+
 	// Idempotent column additions for older databases that pre-date the
 	// employer-profile / admin-role fields. SQLite has no "ADD COLUMN IF NOT
 	// EXISTS", so we detect and ignore "duplicate column" errors.

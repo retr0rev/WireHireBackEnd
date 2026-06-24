@@ -234,7 +234,7 @@ func (r *ClientRepo) ListPending() ([]models.Client, error) {
 // job, suitable for the public homepage. Sensitive fields are stripped.
 func (r *ClientRepo) ListPublicEmployers() ([]models.Client, error) {
 	rows, err := r.db.Query(
-		`SELECT id, c_email, company_name, company_website, company_logo_url, company_bio,
+		`SELECT id, company_name, company_website, company_logo_url, company_bio,
 			COALESCE((SELECT COUNT(*) FROM JOBSAPPS WHERE client_id = CLIENTS.id AND status = 'approved'), 0) AS jobs_approved
 		 FROM CLIENTS
 		 WHERE verified = 1
@@ -251,7 +251,7 @@ func (r *ClientRepo) ListPublicEmployers() ([]models.Client, error) {
 	for rows.Next() {
 		var c models.Client
 		if err := rows.Scan(
-			&c.ID, &c.Email, &c.CompanyName, &c.CompanyWebsite, &c.CompanyLogoURL, &c.CompanyBio,
+			&c.ID, &c.CompanyName, &c.CompanyWebsite, &c.CompanyLogoURL, &c.CompanyBio,
 			&c.JobsApproved,
 		); err != nil {
 			return nil, fmt.Errorf("scan public employer: %w", err)
