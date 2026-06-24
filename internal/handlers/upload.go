@@ -36,14 +36,14 @@ type uploadURLResponse struct {
 
 // UploadHandler provides the upload-url endpoint.
 type UploadHandler struct {
-	r2 *storage.R2Client
+	store storage.StorageClient
 }
 
-func NewUploadHandler(r2 *storage.R2Client) *UploadHandler {
-	return &UploadHandler{r2: r2}
+func NewUploadHandler(store storage.StorageClient) *UploadHandler {
+	return &UploadHandler{store: store}
 }
 
-// GetUploadURL generates a presigned R2 upload URL for an authenticated client.
+// GetUploadURL generates a presigned upload URL for an authenticated client.
 func (h *UploadHandler) GetUploadURL(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1024)
 
@@ -83,13 +83,13 @@ func (h *UploadHandler) GetUploadURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := fmt.Sprintf("%d/%s/%s.%s", clientID, req.Type, uuid.New().String(), req.Ext)
-	uploadURL, err := h.r2.GeneratePresignedURL(r.Context(), key, req.ContentType, maxUploadBytes)
+	uploadURL, err := h.store.GeneratePresignedURL(r.Context(), key, req.ContentType, maxUploadBytes)
 	if err != nil {
 		http.Error(w, `{"error":"failed to generate upload url"}`, http.StatusInternalServerError)
 		return
 	}
 
-	publicURL := h.r2.PublicURL(key)
+	publicURL := h.store.PublicURL(key)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(uploadURLResponse{

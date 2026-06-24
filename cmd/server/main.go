@@ -70,13 +70,13 @@ func main() {
 	adminHandler := handlers.NewAdminHandler(adminRepo, jobRepo, clientRepo)
 	jobHandler := handlers.NewJobHandler(jobRepo)
 
-	r2Client, err := storage.NewR2Client()
+	store, err := storage.NewStorageClient()
 	if err != nil {
-		log.Printf("WARNING: R2 not configured — image upload disabled: %v", err)
+		log.Printf("WARNING: storage not configured — image upload disabled: %v", err)
 	}
 	var uploadHandler *handlers.UploadHandler
-	if r2Client != nil {
-		uploadHandler = handlers.NewUploadHandler(r2Client)
+	if store != nil {
+		uploadHandler = handlers.NewUploadHandler(store)
 	}
 
 	corsOrigin := os.Getenv("CORS_ORIGIN")
@@ -144,6 +144,15 @@ func main() {
 	// Authenticated image upload — requires ClientAuth + CSRF.
 	if uploadHandler != nil {
 		r.With(authmw.ClientAuth, authmw.RateLimit(writeLimiter)).Post("/api/auth/upload-url", uploadHandler.GetUploadURL)
+	}
+
+	// Local file upload endpoint (for direct multipart uploads in dev).
+	// Uses the same LocalClient if storage is local.
+	// Accepts both POST and PUT for compatibility with R2 presigned URL flow.
+	if lc, ok := store.(*storage.LocalClient); ok {
+		r.With(authmw.ClientAuth, authmw.RateLimit(writeLimiter)).MethodFunc("POST", "/api/auth/local-upload", lc.HandleLocalUpload)
+		r.With(authmw.ClientAuth, authmw.RateLimit(writeLimiter)).MethodFunc("PUT", "/api/auth/local-upload", lc.HandleLocalUpload)
+		r.Get("/uploads/*", lc.ServeFile)
 	}
 
 	r.Route("/api/admin", func(r chi.Router) {
