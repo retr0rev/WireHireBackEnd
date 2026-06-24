@@ -190,8 +190,8 @@ func AdminRoleAtLeast(allowed ...string) func(http.Handler) http.Handler {
 
 // Convenience aliases.
 var (
-	SuperAdminOnly      = AdminRoleAtLeast(models.AdminRoleSuperAdmin)
-	ModeratorOrAbove    = AdminRoleAtLeast(models.AdminRoleSuperAdmin, models.AdminRoleModerator)
+	SuperAdminOnly   = AdminRoleAtLeast(models.AdminRoleSuperAdmin)
+	ModeratorOrAbove = AdminRoleAtLeast(models.AdminRoleSuperAdmin, models.AdminRoleModerator)
 )
 
 func GetClientID(r *http.Request) int64 {

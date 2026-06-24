@@ -14,19 +14,19 @@ import (
 
 // Allowed image upload content types.
 var allowedContentTypes = map[string]string{
-	"image/png":      "png",
-	"image/jpeg":     "jpeg",
-	"image/jpg":      "jpg",
-	"image/webp":     "webp",
-	"image/svg+xml":  "svg",
+	"image/png":     "png",
+	"image/jpeg":    "jpeg",
+	"image/jpg":     "jpg",
+	"image/webp":    "webp",
+	"image/svg+xml": "svg",
 }
 
 const maxUploadBytes int64 = 5 * 1024 * 1024 // 5 MB
 
 type uploadURLRequest struct {
-	Type        string `json:"type"`        // "logo" or "banner"
+	Type        string `json:"type"`         // "logo" or "banner"
 	ContentType string `json:"content_type"` // MIME type
-	Ext         string `json:"ext"`         // file extension (png, jpg, etc.)
+	Ext         string `json:"ext"`          // file extension (png, jpg, etc.)
 }
 
 type uploadURLResponse struct {

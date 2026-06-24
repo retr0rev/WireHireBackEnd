@@ -12,11 +12,11 @@ type Client struct {
 	ResetTokenHash    *string `json:"-"`
 	ResetTokenExpiry  *string `json:"-"`
 	// Employer / company profile
-	CompanyName       string `json:"company_name"`
-	CompanyWebsite    string `json:"company_website"`
-	CompanyLogoURL    string `json:"company_logo_url"`
-	CompanyBio        string `json:"company_bio"`
-	CreatedByAdminID  *int64 `json:"created_by_admin_id,omitempty"`
+	CompanyName      string `json:"company_name"`
+	CompanyWebsite   string `json:"company_website"`
+	CompanyLogoURL   string `json:"company_logo_url"`
+	CompanyBio       string `json:"company_bio"`
+	CreatedByAdminID *int64 `json:"created_by_admin_id,omitempty"`
 	// Counts (only populated on list endpoints)
 	JobsTotal    int64 `json:"jobs_total,omitempty"`
 	JobsApproved int64 `json:"jobs_approved,omitempty"`

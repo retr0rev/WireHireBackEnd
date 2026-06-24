@@ -67,7 +67,8 @@ func (s *SMTPSender) Send(to, subject, body string) error {
 //
 // For testing without configuring a custom domain, Resend's
 // `onboarding@resend.dev` test sender works — set:
-//   RESEND_FROM=onboarding@resend.dev
+//
+//	RESEND_FROM=onboarding@resend.dev
 type ResendSender struct {
 	client *resend.Client
 	from   string
@@ -98,11 +99,11 @@ func (s *ResendSender) Send(to, subject, body string) error {
 	html := renderHTML(subject, body)
 
 	params := &resend.SendEmailRequest{
-		From: s.from,
-		To:   []string{to},
+		From:    s.from,
+		To:      []string{to},
 		Subject: subject,
-		Text: body,
-		Html: html,
+		Text:    body,
+		Html:    html,
 	}
 
 	sent, err := s.client.Emails.Send(params)

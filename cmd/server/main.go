@@ -97,8 +97,8 @@ func main() {
 	authLimiter := authmw.NewIPRateLimiter(rate.Limit(0.2), 5)
 	adminAuthLimiter := authmw.NewIPRateLimiter(rate.Limit(0.1), 3)
 	passwordResetLimiter := authmw.NewIPRateLimiter(rate.Limit(0.1), 3)
-	publicLimiter := authmw.NewIPRateLimiter(rate.Limit(1), 10)    // public read endpoints
-	writeLimiter := authmw.NewIPRateLimiter(rate.Limit(0.5), 5)    // authenticated write endpoints
+	publicLimiter := authmw.NewIPRateLimiter(rate.Limit(1), 10) // public read endpoints
+	writeLimiter := authmw.NewIPRateLimiter(rate.Limit(0.5), 5) // authenticated write endpoints
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"status":"ok"}`))

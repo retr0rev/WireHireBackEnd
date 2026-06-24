@@ -106,15 +106,15 @@ func (r *ClientRepo) CreateByAdmin(email, password, phone, companyName, companyW
 	}
 	id, _ := res.LastInsertId()
 	return &models.Client{
-		ID:              id,
-		Email:           email,
-		Password:        password,
-		PhoneNumber:     phonePtr,
-		Verified:        1,
-		CompanyName:     companyName,
-		CompanyWebsite:  companyWebsite,
-		CompanyLogoURL:  companyLogoURL,
-		CompanyBio:      companyBio,
+		ID:               id,
+		Email:            email,
+		Password:         password,
+		PhoneNumber:      phonePtr,
+		Verified:         1,
+		CompanyName:      companyName,
+		CompanyWebsite:   companyWebsite,
+		CompanyLogoURL:   companyLogoURL,
+		CompanyBio:       companyBio,
 		CreatedByAdminID: &createdByAdminID,
 	}, nil
 }
@@ -212,7 +212,7 @@ func (r *ClientRepo) ListAll() ([]models.Client, error) {
 // ListPending returns all unverified employers (verified = 0).
 func (r *ClientRepo) ListPending() ([]models.Client, error) {
 	rows, err := r.db.Query(
-		`SELECT `+clientColumns+` FROM CLIENTS WHERE verified = 0 ORDER BY id ASC`,
+		`SELECT ` + clientColumns + ` FROM CLIENTS WHERE verified = 0 ORDER BY id ASC`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list pending clients: %w", err)

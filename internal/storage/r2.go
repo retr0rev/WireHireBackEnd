@@ -13,10 +13,10 @@ import (
 
 // R2Client wraps an S3 client configured for Cloudflare R2.
 type R2Client struct {
-	client     *s3.Client
-	bucket     string
-	publicURL  string
-	accountID  string
+	client    *s3.Client
+	bucket    string
+	publicURL string
+	accountID string
 }
 
 // NewR2Client initialises an S3 client pointed at Cloudflare R2.

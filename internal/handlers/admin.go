@@ -17,8 +17,8 @@ import (
 )
 
 type AdminHandler struct {
-	adminRepo *repository.AdminRepo
-	jobRepo   *repository.JobRepo
+	adminRepo  *repository.AdminRepo
+	jobRepo    *repository.JobRepo
 	clientRepo *repository.ClientRepo
 }
 
