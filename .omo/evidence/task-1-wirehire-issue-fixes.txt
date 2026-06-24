@@ -1,0 +1,96 @@
+WireHire Issue Fixes - Task 1: Admin authentication bypass
+Repository: /home/retr0rev/JobAppsBackend
+Branch: fix/wirehire-issue-fixes
+File modified: cmd/server/main.go
+
+=== BASELINE (before fix) - unauthenticated requests ===
+
+GET /api/admin/jobs
+200
+
+GET /api/admin/employers/pending
+200
+
+PUT /api/admin/jobs/1/status
+404
+
+DELETE /api/admin/jobs/1
+404
+
+POST /api/admin/logout
+200
+
+PUT /api/admin/employers/1/verify
+200
+
+Note: The 404 responses for DELETE /api/admin/jobs/1 and PUT /api/admin/jobs/1/status
+are due to the referenced resource not existing; the critical issue is that none of the
+six endpoints returned 401, confirming the authentication bypass.
+
+=== AFTER FIX - unauthenticated requests ===
+
+GET /api/admin/jobs
+401
+
+GET /api/admin/employers/pending
+401
+
+PUT /api/admin/jobs/1/status
+401
+
+DELETE /api/admin/jobs/1
+401
+
+POST /api/admin/logout
+401
+
+PUT /api/admin/employers/1/verify
+401
+
+=== AFTER FIX - authenticated requests ===
+
+Admin seeded: admin@wirehire.test
+POST /api/admin/login
+200
+
+GET /api/admin/jobs (authenticated, super_admin)
+200
+
+POST /api/admin/logout (authenticated, any-admin group)
+200
+
+GET /api/admin/me (authenticated, any-admin group)
+200
+
+=== CHANGE SUMMARY ===
+
+In cmd/server/main.go, the original group at lines 127-136 registered
+moderation endpoints without any middleware:
+  /api/admin/jobs
+  /api/admin/jobs/{id}/status
+  /api/admin/jobs/{id} (DELETE)
+  /api/admin/logout
+  /api/admin/employers/pending
+  /api/admin/employers/{id}/verify
+
+The fix splits the group:
+
+1. Any signed-in admin group (r.Use(authmw.AdminAuth)):
+   - GET /api/admin/me
+   - PATCH /api/admin/me/password
+   - POST /api/admin/logout
+
+2. Moderator-or-above group (r.Use(authmw.AdminAuth); r.Use(authmw.ModeratorOrAbove)):
+   - GET /api/admin/jobs
+   - PUT /api/admin/jobs/{id}/status
+   - DELETE /api/admin/jobs/{id}
+   - GET /api/admin/employers/pending
+   - PUT /api/admin/employers/{id}/verify
+
+The super-admin group (lines 139-149) was left unchanged, and no route paths or
+handler signatures were modified.
+
+Verification:
+  go build ./cmd/server  -> success
+  unauthenticated curls  -> 401 for all 6 previously-unguarded endpoints
+  authenticated curls    -> 200 for /api/admin/jobs, /api/admin/logout, /api/admin/me
