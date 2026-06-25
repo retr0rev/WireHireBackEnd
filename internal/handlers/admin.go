@@ -269,7 +269,7 @@ func (h *AdminHandler) CreateEmployer(w http.ResponseWriter, r *http.Request) {
 		adminID,
 	)
 	if err != nil {
-		http.Error(w, `{"error":"failed to create employer: `+err.Error()+`"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"failed to create employer"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -321,22 +321,51 @@ func (h *AdminHandler) UpdateEmployer(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Email != nil {
 		normalized := middleware.NormalizeEmail(*req.Email)
+		if !middleware.ValidateEmail(normalized) {
+			http.Error(w, `{"error":"invalid email format"}`, http.StatusBadRequest)
+			return
+		}
 		req.Email = &normalized
 	}
 
-	if err := h.clientRepo.Update(id, repository.ClientUpdate{
+	existing, _ := h.clientRepo.FindByID(id)
+	if existing == nil {
+		http.Error(w, `{"error":"employer not found"}`, http.StatusNotFound)
+		return
+	}
+
+	update := repository.ClientUpdate{
 		CompanyName:    req.CompanyName,
 		CompanyWebsite: req.CompanyWebsite,
 		CompanyLogoURL: req.CompanyLogoURL,
 		CompanyBio:     req.CompanyBio,
 		Phone:          req.Phone,
 		Email:          req.Email,
-	}); err != nil {
-		http.Error(w, `{"error":"update failed: `+err.Error()+`"}`, http.StatusInternalServerError)
+	}
+
+	if req.Password != nil {
+		if errMsg := middleware.ValidatePassword(*req.Password); errMsg != "" {
+			http.Error(w, `{"error":"`+errMsg+`"}`, http.StatusBadRequest)
+			return
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			http.Error(w, `{"error":"server error"}`, http.StatusInternalServerError)
+			return
+		}
+		hashStr := string(hash)
+		update.Password = &hashStr
+	}
+
+	if err := h.clientRepo.Update(id, update); err != nil {
+		http.Error(w, `{"error":"update failed"}`, http.StatusInternalServerError)
 		return
 	}
 
 	updated, _ := h.clientRepo.FindByID(id)
+	if updated != nil {
+		updated.Password = ""
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updated)
 }
@@ -349,7 +378,7 @@ func (h *AdminHandler) DeleteEmployer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.clientRepo.Delete(id); err != nil {
-		http.Error(w, `{"error":"delete failed: `+err.Error()+`"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"delete failed"}`, http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -402,7 +431,7 @@ func (h *AdminHandler) CreateAdmin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, `{"error":"admin already exists"}`, http.StatusConflict)
 			return
 		}
-		http.Error(w, `{"error":"create failed: `+err.Error()+`"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"create failed"}`, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

@@ -279,7 +279,7 @@ func (h *CompanyHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		CompanyBio:     req.CompanyBio,
 		Phone:          req.Phone,
 	}); err != nil {
-		http.Error(w, `{"error":"update failed: `+err.Error()+`"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"update failed"}`, http.StatusInternalServerError)
 		return
 	}
 

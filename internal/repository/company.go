@@ -268,6 +268,7 @@ type ClientUpdate struct {
 	CompanyBio     *string
 	Phone          *string
 	Email          *string
+	Password       *string
 }
 
 func (r *ClientRepo) Update(id int64, u ClientUpdate) error {
@@ -300,6 +301,10 @@ func (r *ClientRepo) Update(id int64, u ClientUpdate) error {
 	if u.Email != nil {
 		sets = append(sets, "c_email = ?")
 		args = append(args, *u.Email)
+	}
+	if u.Password != nil {
+		sets = append(sets, "c_password = ?")
+		args = append(args, *u.Password)
 	}
 	if len(sets) == 0 {
 		return nil

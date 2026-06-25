@@ -2,12 +2,15 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // LocalClient stores uploaded files on the local filesystem.
@@ -96,16 +99,13 @@ func (l *LocalClient) ServeFile(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, key, stat.ModTime(), f)
 }
 
-// HandleLocalUpload handles POST requests for direct file uploads.
+// HandleLocalUpload handles direct file uploads in local dev mode.
+// Supports both:
+//   - Raw PUT/POST with Content-Type image/* and file bytes as body
+//   - Multipart form POST with a "file" field (legacy)
 func (l *LocalClient) HandleLocalUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost && r.Method != http.MethodPut {
-		http.Error(w, `{"error":"method not allowed - FIXED"}`, http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Parse multipart form with max memory
-	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB
-		http.Error(w, `{"error":"file too large"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -117,27 +117,52 @@ func (l *LocalClient) HandleLocalUpload(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if strings.Contains(key, "..") {
+		http.Error(w, `{"error":"invalid key"}`, http.StatusBadRequest)
+		return
+	}
+
 	// Security: validate content type
 	allowedTypes := map[string]bool{
-		"image/png":  true,
-		"image/jpeg": true,
-		"image/webp": true,
-		"image/svg+xml": true,
+		"image/png":       true,
+		"image/jpeg":      true,
+		"image/webp":      true,
+		"image/svg+xml":   true,
 	}
 	if !allowedTypes[contentType] {
 		http.Error(w, `{"error":"unsupported content type"}`, http.StatusBadRequest)
 		return
 	}
 
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		http.Error(w, `{"error":"no file uploaded"}`, http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
+	var file io.ReadCloser
+	var fileSize int64
 
-	// Validate file size (5 MB)
-	if header.Size > 5*1024*1024 {
+	// Check if this is a multipart upload or raw body upload.
+	contentTypeHeader := r.Header.Get("Content-Type")
+	if strings.HasPrefix(contentTypeHeader, "multipart/form-data") {
+		// Multipart form upload (legacy path).
+		if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB
+			http.Error(w, `{"error":"failed to parse multipart form"}`, http.StatusBadRequest)
+			return
+		}
+		f, header, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, `{"error":"no file uploaded"}`, http.StatusBadRequest)
+			return
+		}
+		defer f.Close()
+		file = f
+		fileSize = header.Size
+	} else {
+		// Raw body upload — the file bytes are the entire request body.
+		// Limit to 5 MB.
+		r.Body = http.MaxBytesReader(w, r.Body, 5*1024*1024)
+		file = r.Body
+		fileSize = -1 // unknown, rely on MaxBytesReader
+	}
+
+	// Validate file size (only for multipart where we know it upfront).
+	if fileSize > 5*1024*1024 {
 		http.Error(w, `{"error":"file too large (max 5MB)"}`, http.StatusBadRequest)
 		return
 	}
@@ -165,4 +190,69 @@ func (l *LocalClient) HandleLocalUpload(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, `{"public_url":"%s"}`, l.PublicURL(key))
+}
+
+// HandleAdminUpload handles file uploads from the admin dashboard.
+// Accepts PUT with raw file bytes and Content-Type header.
+// Uses admin/ prefix for the stored key to separate from employer uploads.
+func (l *LocalClient) HandleAdminUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodPut {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "" {
+		http.Error(w, `{"error":"missing Content-Type header"}`, http.StatusBadRequest)
+		return
+	}
+
+	allowedTypes := map[string]bool{
+		"image/png":     true,
+		"image/jpeg":    true,
+		"image/webp":    true,
+		"image/svg+xml": true,
+	}
+	if !allowedTypes[contentType] {
+		http.Error(w, `{"error":"unsupported content type; allowed: image/png, image/jpeg, image/webp, image/svg+xml"}`, http.StatusBadRequest)
+		return
+	}
+
+	extMap := map[string]string{
+		"image/png":     "png",
+		"image/jpeg":    "jpeg",
+		"image/webp":    "webp",
+		"image/svg+xml": "svg",
+	}
+	ext := extMap[contentType]
+
+	r.Body = http.MaxBytesReader(w, r.Body, 5*1024*1024)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, `{"error":"file too large (max 5MB)"}`, http.StatusRequestEntityTooLarge)
+		return
+	}
+	if len(body) == 0 {
+		http.Error(w, `{"error":"empty file"}`, http.StatusBadRequest)
+		return
+	}
+
+	key := fmt.Sprintf("admin/%s.%s", uuid.New().String(), ext)
+
+	dir := filepath.Join(l.baseDir, filepath.Dir(key))
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		http.Error(w, `{"error":"failed to create directory"}`, http.StatusInternalServerError)
+		return
+	}
+
+	filePath := filepath.Join(l.baseDir, key)
+	if err := os.WriteFile(filePath, body, 0644); err != nil {
+		http.Error(w, `{"error":"failed to save file"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"public_url": l.PublicURL(key),
+	})
 }

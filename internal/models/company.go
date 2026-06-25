@@ -75,6 +75,7 @@ type UpdateEmployerRequest struct {
 	CompanyBio     *string `json:"company_bio,omitempty"`
 	Phone          *string `json:"phone,omitempty"`
 	Email          *string `json:"email,omitempty"`
+	Password       *string `json:"password,omitempty"`
 }
 
 type EmployerCreateResponse struct {

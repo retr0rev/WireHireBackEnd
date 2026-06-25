@@ -152,6 +152,8 @@ func main() {
 	if lc, ok := store.(*storage.LocalClient); ok {
 		r.With(authmw.ClientAuth, authmw.RateLimit(writeLimiter)).MethodFunc("POST", "/api/auth/local-upload", lc.HandleLocalUpload)
 		r.With(authmw.ClientAuth, authmw.RateLimit(writeLimiter)).MethodFunc("PUT", "/api/auth/local-upload", lc.HandleLocalUpload)
+		r.With(authmw.AdminAuth, authmw.RateLimit(writeLimiter)).MethodFunc("POST", "/api/admin/upload", lc.HandleAdminUpload)
+		r.With(authmw.AdminAuth, authmw.RateLimit(writeLimiter)).MethodFunc("PUT", "/api/admin/upload", lc.HandleAdminUpload)
 		r.Get("/uploads/*", lc.ServeFile)
 	}
 
