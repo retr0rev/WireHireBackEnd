@@ -12,8 +12,17 @@ type StorageClient interface {
 }
 
 // NewStorageClient creates a storage client based on available configuration.
-// Prefers R2 if all env vars are set, otherwise falls back to local filesystem.
+// Priority: Cloudinary > R2 > Local
 func NewStorageClient() (StorageClient, error) {
+	// Check if Cloudinary is fully configured
+	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
+	apiKey := os.Getenv("CLOUDINARY_API_KEY")
+	apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
+
+	if cloudName != "" && apiKey != "" && apiSecret != "" {
+		return NewCloudinaryClient()
+	}
+
 	// Check if R2 is fully configured
 	accountID := os.Getenv("R2_ACCOUNT_ID")
 	accessKey := os.Getenv("R2_ACCESS_KEY_ID")

@@ -145,6 +145,12 @@ func main() {
 	if uploadHandler != nil {
 		r.With(authmw.ClientAuth, authmw.RateLimit(writeLimiter)).Post("/api/auth/upload-url", uploadHandler.GetUploadURL)
 	}
+	
+	// Direct Cloudinary upload for admins (bypasses R2/Local storage)
+	// URL field is signed by the frontend via the upload-url endpoint when CLOUDINARY_UPLOAD_PRESET is set
+	if uploadHandler != nil {
+		r.With(authmw.AdminAuth, authmw.RateLimit(writeLimiter)).Post("/api/admin/cloudinary-upload", adminHandler.CloudinaryUpload)
+	}
 
 	// Local file upload endpoint (for direct multipart uploads in dev).
 	// Uses the same LocalClient if storage is local.

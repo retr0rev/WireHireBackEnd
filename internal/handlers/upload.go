@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"jobapps/internal/middleware"
@@ -23,6 +25,113 @@ var allowedContentTypes = map[string]string{
 
 const maxUploadBytes int64 = 5 * 1024 * 1024 // 5 MB
 
+type cloudinaryUploadResponse struct {
+	PublicURL string `json:"public_url"`
+	Key       string `json:"key"`
+	Error     string `json:"error,omitempty"`
+}
+
+func (h *UploadHandler) CloudinaryUpload(w http.ResponseWriter, r *http.Request) {
+	contentType := r.Header.Get("Content-Type")
+	var fileData []byte
+	var err error
+
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			http.Error(w, `{"error":"failed to parse multipart form"}`, http.StatusBadRequest)
+			return
+		}
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, `{"error":"no file uploaded"}`, http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+
+		fileData, err = io.ReadAll(file)
+		if err != nil {
+			http.Error(w, `{"error":"failed to read file"}`, http.StatusInternalServerError)
+			return
+		}
+		if int64(len(fileData)) > maxUploadBytes {
+			http.Error(w, `{"error":"file too large (max 5MB)"}`, http.StatusBadRequest)
+			return
+		}
+		ext := strings.TrimPrefix(header.Filename, "admin/")
+		if ext == "" {
+			hext = ".png"
+		}
+		key := fmt.Sprintf("admin/%s%s", uuid.New().String(), ext)
+		resp := h.uploadToCloudinary(fileData, key, contentType, r)
+		if resp.Error != "" {
+			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, resp.Error), http.StatusBadRequest)
+			return
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	} else {
+		r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
+		fileData, err = io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, `{"error":"file too large (max 5MB)"}`, http.StatusRequestEntityTooLarge)
+			return
+		}
+		if len(fileData) == 0 {
+			http.Error(w, `{"error":"empty file"}`, http.StatusBadRequest)
+			return
+		}
+		key := fmt.Sprintf("admin/%s.%s", uuid.New().String(), "upload")
+		tp := contentType
+		if p := strings.SplitN(contentType, "/", 2); len(p) == 2 {
+			p[1] = strings.ReplaceAll(p[1], "+", ".")
+			tp = p[0] + "/" + p[1]
+		}
+		resp := h.uploadToCloudinary(fileData, key, tp, r)
+		if resp.Error != "" {
+			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, resp.Error), http.StatusBadRequest)
+			return
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+}
+
+func (h *UploadHandler) uploadToCloudinary(fileData []byte, key, contentType string, r *http.Request) cloudinaryUploadResponse {
+	// The handler's store could be Cloudinary if configured
+	cloudinaryStore, ok := h.store.(*storage.CloudinaryClient)
+	if !ok {
+		return cloudinaryUploadResponse{Error: "Storage is not Cloudinary"}
+	}
+	
+	// Validate content type
+	if err := cloudinaryStore.ValidateContentType(contentType); err != nil {
+		return cloudinaryUploadResponse{Error: err.Error()}
+	}
+	
+	// Upload to Cloudinary
+	publicURL, err := cloudinaryStore.UploadDirect(r.Context(), key, contentType, fileData)
+	if err != nil {
+		return cloudinaryUploadResponse{Error: fmt.Sprintf("Cloudinary upload failed: %v", err)}
+	}
+	
+	return cloudinaryUploadResponse{
+		PublicURL: publicURL,
+		Key:       key,
+	}
+}
+
+const maxUploadBytes int64 = 5 * 1024 * 1024 // 5 MB
+
+type cloudinaryUploadResponse struct {
+	PublicURL string `json:"public_url"`
+	Key       string `json:"key"`
+	Error     string `json:"error,omitempty"`
+}
+
 type uploadURLRequest struct {
 	Type        string `json:"type"`         // "logo" or "banner"
 	ContentType string `json:"content_type"` // MIME type
@@ -30,8 +139,9 @@ type uploadURLRequest struct {
 }
 
 type uploadURLResponse struct {
-	UploadURL string `json:"upload_url"`
-	PublicURL string `json:"public_url"`
+	UploadURL       string `json:"upload_url"`
+	PublicURL       string `json:"public_url"`
+	CloudinaryPreset string `json:"cloudinary_preset,omitempty"`
 }
 
 // UploadHandler provides the upload-url endpoint.
@@ -91,9 +201,13 @@ func (h *UploadHandler) GetUploadURL(w http.ResponseWriter, r *http.Request) {
 
 	publicURL := h.store.PublicURL(key)
 
+	// Check if using Cloudinary (unsigned preset flow)
+	preset := os.Getenv("CLOUDINARY_UPLOAD_PRESET")
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(uploadURLResponse{
-		UploadURL: uploadURL,
-		PublicURL: publicURL,
+		UploadURL:        uploadURL,
+		PublicURL:        publicURL,
+		CloudinaryPreset: preset,
 	})
 }

@@ -3,13 +3,16 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"jobapps/internal/middleware"
 	"jobapps/internal/models"
 	"jobapps/internal/repository"
+	"jobapps/internal/storage"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
@@ -508,12 +511,137 @@ func (h *AdminHandler) ListPendingEmployers(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *AdminHandler) VerifyEmployer(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	clientIDStr := chi.URLParam(r, "id")
+	clientID, err := strconv.ParseInt(clientIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, `{"error":"invalid employer id"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"invalid client id"}`, http.StatusBadRequest)
 		return
 	}
+
+	verified := r.URL.Query().Get("verified")
+	if verified == "" {
+		http.Error(w, `{"error":"verified parameter is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	var verifiedInt int64
+	if verified == "true" {
+		verifiedInt = 1
+	} else if verified == "false" {
+		verifiedInt = 0
+	} else {
+		http.Error(w, `{"error":"verified must be 'true' or 'false'"}`, http.StatusBadRequest)
+		return
+	}
+
+	client, err := h.clientRepo.Verify(clientID, verifiedInt)
+	if err != nil {
+		http.Error(w, `{"error":"failed to verify employer"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(client)
+}
+
+func (h *AdminHandler) CloudinaryUpload(w http.ResponseWriter, r *http.Request) {
+	contentType := r.Header.Get("Content-Type")
+	var fileData []byte
+	var err error
+
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			http.Error(w, `{"error":"failed to parse multipart form"}`, http.StatusBadRequest)
+			return
+		}
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, `{"error":"no file uploaded"}`, http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+
+		fileData, err = io.ReadAll(file)
+		if err != nil {
+			http.Error(w, `{"error":"failed to read file"}`, http.StatusInternalServerError)
+			return
+		}
+		if int64(len(fileData)) > 5*1024*1024 {
+			http.Error(w, `{"error":"file too large (max 5MB)"}`, http.StatusBadRequest)
+			return
+		}
+		ext := filepath.Ext(header.Filename)
+		if ext == "" {
+			hext = ".png"
+		}
+		key := fmt.Sprintf("admin/%s%s", strings.TrimPrefix(header.Filename, "/admin/"), ext)
+		resp := h.handleCloudinaryDirectUpload(fileData, key, contentType)
+		if resp.Error != "" {
+			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, resp.Error), http.StatusBadRequest)
+			return
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	} else {
+		r.Body = http.MaxBytesReader(w, r.Body, 5*1024*1024)
+		fileData, err = io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, `{"error":"file too large (max 5MB)"}`, http.StatusRequestEntityTooLarge)
+			return
+		}
+		if len(fileData) == 0 {
+			http.Error(w, `{"error":"empty file"}`, http.StatusBadRequest)
+			return
+		}
+		key := fmt.Sprintf("admin/%s.%s", strings.TrimSuffix(r.URL.Query().Get("filename"), filepath.Ext(r.URL.Query().Get("filename"))), "uploaded")
+		resp := h.handleCloudinaryDirectUpload(fileData, key, contentType)
+		if resp.Error != "" {
+			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, resp.Error), http.StatusBadRequest)
+			return
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+}
+
+type cloudinaryUploadResponse struct {
+	PublicURL string `json:"public_url"`
+	Key       string `json:"key"`
+	Error     string `json:"error,omitempty"`
+}
+
+func (h *AdminHandler) handleCloudinaryDirectUpload(fileData []byte, key, contentType string) cloudinaryUploadResponse {
+	store, err := storage.NewStorageClient()
+	if err != nil {
+		return cloudinaryUploadResponse{Error: "Cloudinary not configured"}
+	}
+	
+	// Check if store is actually Cloudinary
+	cloudinaryStore, ok := store.(*storage.CloudinaryClient)
+	if !ok {
+		return cloudinaryUploadResponse{Error: "Storage configured for non-Cloudinary storage"}
+	}
+	
+	// Validate content type
+	if err := cloudinaryStore.ValidateContentType(contentType); err != nil {
+		return cloudinaryUploadResponse{Error: err.Error()}
+	}
+	
+	// Upload to Cloudinary
+	publicURL, err := cloudinaryStore.UploadDirect(r.Context(), key, contentType, fileData)
+	if err != nil {
+		return cloudinaryUploadResponse{Error: fmt.Sprintf("Cloudinary upload failed: %v", err)}
+	}
+	
+	return cloudinaryUploadResponse{
+		PublicURL: publicURL,
+		Key:       key,
+	}
+}
 
 	if err := h.clientRepo.SetVerified(id); err != nil {
 		http.Error(w, `{"error":"failed to verify employer"}`, http.StatusInternalServerError)
