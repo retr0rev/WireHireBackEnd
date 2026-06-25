@@ -59,6 +59,7 @@ var publicAuthPaths = map[string]struct{}{
 	"/api/auth/login":           {},
 	"/api/auth/forgot-password": {},
 	"/api/auth/reset-password":  {},
+	"/api/admin/login":          {},
 }
 
 // CSRFMiddleware returns a middleware that enforces double-submit CSRF
